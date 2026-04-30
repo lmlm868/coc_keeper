@@ -1,0 +1,22 @@
+{
+  "name": "coc-keeper-android",
+  "version": "1.0.0",
+  "description": "AI守秘人 - 克苏鲁呼唤 Android App (Capacitor WebView Wrapper)",
+  "main": "index.js",
+  "scripts": {
+    "build:www": "npx cap sync android",
+    "open:android": "npx cap open android",
+    "build:apk": "cd android && ./gradlew assembleDebug",
+    "build:release": "cd android && ./gradlew assembleRelease",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["coc", "android", "keeper", "cthulhu"],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1"
+  }
+}

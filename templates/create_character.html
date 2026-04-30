@@ -1,0 +1,1982 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>车卡向导 - 克苏鲁的呼唤 7th</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        /* ===== 步骤指示器 ===== */
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 30px;
+            right: 30px;
+            height: 3px;
+            background: #444;
+            z-index: 0;
+        }
+        .step-dot {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: default;
+        }
+        .step-dot .circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: #888;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .step-dot.active .circle {
+            background: #0a6cff;
+            color: white;
+            border-color: #4a9cff;
+            box-shadow: 0 0 12px rgba(10,108,255,0.4);
+        }
+        .step-dot.done .circle {
+            background: #28a745;
+            color: white;
+        }
+        .step-dot .label {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .step-dot.active .label { color: #0a6cff; font-weight: bold; }
+        .step-dot.done .label { color: #28a745; }
+
+        /* ===== 卡片面板 ===== */
+        .panel {
+            background: #2c2c2c;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .panel.active { display: block; }
+        .panel h2 {
+            margin: 0 0 20px 0;
+            font-size: 22px;
+            color: #ffd966;
+            border-bottom: 1px solid #444;
+            padding-bottom: 12px;
+        }
+        .panel p.desc {
+            color: #aaa;
+            font-size: 14px;
+            margin: 0 0 16px 0;
+        }
+
+        /* ===== 表单 ===== */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-group label {
+            font-size: 13px;
+            color: #aaa;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 15px;
+            color: white;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #0a6cff;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        /* ===== 属性掷骰 ===== */
+        .roll-area {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .big-roll-btn {
+            background: linear-gradient(135deg, #0a6cff, #4a9cff);
+            border: none;
+            color: white;
+            padding: 16px 48px;
+            border-radius: 40px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 4px 20px rgba(10,108,255,0.3);
+        }
+        .big-roll-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px rgba(10,108,255,0.45);
+        }
+        .big-roll-btn:active { transform: translateY(0); }
+        .big-roll-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        .roll-btn-sm {
+            background: #0a6cff;
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .roll-btn-sm:hover { background: #4a9cff; }
+        .roll-btn-sm:disabled { background: #555; cursor: not-allowed; }
+
+        .attrs-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .attr-card {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            border: 1px solid #333;
+            transition: border-color 0.2s;
+        }
+        .attr-card:hover { border-color: #0a6cff; }
+        .attr-card .abbr {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffd966;
+        }
+        .attr-card .fullname {
+            font-size: 11px;
+            color: #888;
+            margin: 2px 0 6px 0;
+        }
+        .attr-card .dice-formula {
+            font-size: 10px;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        .attr-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            margin: 6px 0;
+        }
+        .attr-card .value.rolled { color: #6af; animation: popIn 0.3s ease; }
+        .attr-bar-small {
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .attr-bar-small .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0a6cff, #4a9cff);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(1.4); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ===== 衍生属性 ===== */
+        .derived-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .derived-box {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        .derived-box .label {
+            font-size: 11px;
+            color: #888;
+        }
+        .derived-box .val {
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+        .derived-box .val.san { color: #ff8888; }
+        .derived-box .val.hp { color: #ff6688; }
+        .derived-box .val.mp { color: #88aaff; }
+        .derived-box .val.luck { color: #88ff88; }
+        .derived-box .val.db { color: #ffaa44; }
+        .derived-box .val.build { color: #ffaa44; }
+        .derived-box .val.mov { color: #66ddff; }
+        .derived-box .val.dodge { color: #66ffaa; }
+
+        /* ===== 职业选择 ===== */
+        .occupation-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .occ-card {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .occ-card:hover {
+            border-color: #0a6cff;
+            background: #222;
+        }
+        .occ-card.selected {
+            border-color: #0a6cff;
+            background: #0a2a4a;
+        }
+        .occ-card .occ-name {
+            font-size: 15px;
+            font-weight: bold;
+            color: #ffd966;
+        }
+        .occ-card .occ-desc {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .occ-card .occ-credit {
+            font-size: 11px;
+            color: #6af;
+            margin-top: 4px;
+        }
+        .occ-card .occ-skills {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        /* ===== 技能分配 ===== */
+        .skill-allocation {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .skill-column {
+            flex: 1;
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .skill-column h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #ccc;
+            border-bottom: 1px solid #333;
+            padding-bottom: 6px;
+        }
+        .skill-column .points-left {
+            font-size: 13px;
+            color: #6af;
+            margin-bottom: 10px;
+        }
+        .skill-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .skill-row .sname {
+            font-size: 12px;
+            color: #ccc;
+            flex: 1;
+        }
+        .skill-row .scontrols {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .skill-row .scontrols button {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            background: #444;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .skill-row .scontrols button:hover { background: #0a6cff; }
+        .skill-row .scontrols button:disabled { background: #333; color: #555; cursor: not-allowed; }
+        .skill-row .scontrols .sval {
+            font-size: 14px;
+            font-weight: bold;
+            color: #6af;
+            min-width: 30px;
+            text-align: center;
+        }
+        .skill-row .sbase {
+            font-size: 10px;
+            color: #555;
+            margin-right: 4px;
+        }
+        .skill-row .sremove {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: none;
+            background: #6a2030;
+            color: #ff6b6b;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 4px;
+            transition: background 0.2s;
+        }
+        .skill-row .sremove:hover { background: #a03040; }
+
+        /* ===== 技能选择器 ===== */
+        .skill-picker {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .skill-picker select {
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: white;
+            outline: none;
+        }
+        .skill-picker select:focus { border-color: #0a6cff; }
+        .skill-picker select option { background: #1e1e1e; color: white; }
+        .skill-picker .add-skill-btn {
+            background: #0a6cff;
+            border: none;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+        .skill-picker .add-skill-btn:hover { background: #4a9cff; }
+        .skill-picker .add-skill-btn:disabled { background: #444; color: #666; cursor: not-allowed; }
+        .empty-hint {
+            color: #555;
+            font-size: 13px;
+            text-align: center;
+            padding: 20px 0;
+            font-style: italic;
+        }
+
+        /* ===== 物品 ===== */
+        .equip-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .equip-tag {
+            background: #2a2a3a;
+            border: 1px solid #3a3a4a;
+            border-radius: 20px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #ccc;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .equip-tag:hover {
+            border-color: #0a6cff;
+        }
+        .equip-tag.selected {
+            background: #0a3a6a;
+            border-color: #0a6cff;
+            color: white;
+        }
+        .equip-custom-input {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .equip-custom-input input {
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 14px;
+            color: white;
+            outline: none;
+        }
+        .equip-custom-input input:focus { border-color: #0a6cff; }
+
+        /* ===== 确认页 ===== */
+        .review-section {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .review-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            color: #ffd966;
+            border-bottom: 1px solid #333;
+            padding-bottom: 6px;
+        }
+        .review-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 6px;
+        }
+        .review-item {
+            font-size: 13px;
+            padding: 4px 0;
+        }
+        .review-item .rl { color: #888; }
+        .review-item .rv { color: #ddd; }
+        .review-skills {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+        .review-skills .rs {
+            font-size: 12px;
+            padding: 2px 0;
+        }
+        .review-skills .rs .rsn { color: #aaa; }
+        .review-skills .rs .rsv { color: #6af; font-weight: bold; }
+
+        /* ===== 导航按钮 ===== */
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            gap: 12px;
+        }
+        .btn-prev, .btn-next, .btn-save {
+            padding: 12px 32px;
+            border: none;
+            border-radius: 24px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-prev {
+            background: #444;
+            color: white;
+        }
+        .btn-prev:hover { background: #555; }
+        .btn-next {
+            background: #0a6cff;
+            color: white;
+            margin-left: auto;
+        }
+        .btn-next:hover { background: #4a9cff; }
+        .btn-save {
+            background: linear-gradient(135deg, #28a745, #34d058);
+            color: white;
+            margin-left: auto;
+        }
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(40,167,69,0.4);
+        }
+        .btn-prev:disabled, .btn-next:disabled { background: #555; cursor: not-allowed; }
+
+        /* ===== 反馈消息 ===== */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            z-index: 999;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.error { background: #dc3545; }
+
+        /* ===== 返回按钮 ===== */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-link {
+            color: #aaa;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 16px;
+            border-radius: 8px;
+            background: #2c2c2c;
+        }
+        .back-link:hover { color: white; background: #3a3a3a; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+
+        @media (max-width: 700px) {
+            .attrs-grid { grid-template-columns: repeat(2, 1fr); }
+            .derived-grid-2 { grid-template-columns: repeat(2, 1fr); }
+            .form-grid { grid-template-columns: 1fr; }
+            .occupation-grid { grid-template-columns: 1fr; }
+            .skill-allocation { flex-direction: column; }
+            .review-grid { grid-template-columns: 1fr 1fr; }
+            .review-skills { grid-template-columns: 1fr; }
+            .step-dot .label { font-size: 10px; white-space: normal; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 顶部导航 -->
+    <div class="top-bar">
+        <a href="/" class="back-link">&#8592; 返回主界面</a>
+        <span style="color:#888; font-size:14px;">克苏鲁的呼唤 &#8226; 第七版 &#8226; 调查员创建</span>
+    </div>
+
+    <!-- 步骤指示器 -->
+    <div class="step-indicator">
+        <div class="step-dot active" id="stepDot0">
+            <div class="circle">1</div>
+            <span class="label">基本信息</span>
+        </div>
+        <div class="step-dot" id="stepDot1">
+            <div class="circle">2</div>
+            <span class="label">掷骰属性</span>
+        </div>
+        <div class="step-dot" id="stepDot2">
+            <div class="circle">3</div>
+            <span class="label">职业&技能</span>
+        </div>
+        <div class="step-dot" id="stepDot3">
+            <div class="circle">4</div>
+            <span class="label">背景故事</span>
+        </div>
+        <div class="step-dot" id="stepDot4">
+            <div class="circle">5</div>
+            <span class="label">装备</span>
+        </div>
+        <div class="step-dot" id="stepDot5">
+            <div class="circle">6</div>
+            <span class="label">确认</span>
+        </div>
+    </div>
+
+    <!-- ===== Step 0: 基本信息 ===== -->
+    <div class="panel active" id="panel0">
+        <h2>&#128100; 第一步：角色基本信息</h2>
+        <p class="desc">填写你的调查员基本资料，或使用下方快捷方式快速生成。</p>
+
+        <!-- 快捷生成按钮区域 -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+            <button class="big-roll-btn" id="aiGenerateBtn" style="padding:12px 28px; font-size:16px; background:linear-gradient(135deg,#9b59b6,#8e44ad);">
+                &#129302; AI 随机生成角色
+            </button>
+            <button class="big-roll-btn" id="quickPresetBtn" style="padding:12px 28px; font-size:16px; background:linear-gradient(135deg,#e67e22,#d35400);">
+                &#127922; 快速预设角色
+            </button>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>角色姓名</label>
+                <input type="text" id="charName" placeholder="如：张明远" value="调查员">
+            </div>
+            <div class="form-group">
+                <label>性别</label>
+                <select id="charGender">
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>年龄</label>
+                <input type="number" id="charAge" value="25" min="15" max="90">
+            </div>
+            <div class="form-group">
+                <label>年代/时代</label>
+                <input type="text" id="charEra" value="1920年代" placeholder="如：1920年代、1890年代、现代" list="eraSuggestions">
+                <datalist id="eraSuggestions">
+                    <option value="1890年代（维多利亚时代）">
+                    <option value="1920年代（黄金时代）">
+                    <option value="1930年代（大萧条时期）">
+                    <option value="1940年代（二战时期）">
+                    <option value="1950年代（冷战初期）">
+                    <option value="1980年代">
+                    <option value="1990年代">
+                    <option value="2000年代（当代）">
+                </datalist>
+                <small style="color:#666; font-size:11px; margin-top:2px;">背景故事将根据所选年代生成相应的时代背景</small>
+            </div>
+            <div class="form-group">
+                <label>国籍</label>
+                <input type="text" id="charNationality" value="中国" placeholder="国籍">
+            </div>
+            <div class="form-group">
+                <label>出生地</label>
+                <input type="text" id="charResidence" value="上海" placeholder="居住地">
+            </div>
+            <div class="form-group">
+                <label>职业</label>
+                <select id="charOccupationSimple">
+                    <option value="">（将在第三步选择）</option>
+                </select>
+            </div>
+            <div class="form-group full">
+                <label>性格描述（简要）</label>
+                <textarea id="charPersonality" placeholder="如：谨慎而好奇，对未知事物有强烈探索欲"></textarea>
+            </div>
+            <div class="form-group full">
+                <label>兴趣爱好</label>
+                <textarea id="charInterests" placeholder="如：阅读古籍、摄影、收集古玩"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Step 1: 掷骰属性 ===== -->
+    <div class="panel" id="panel1">
+        <h2>&#127922; 第二步：决定角色属性</h2>
+        <p class="desc">点击下方按钮掷骰决定角色的八项基础属性。你可以多次重掷直到满意为止。</p>
+
+        <div class="roll-area">
+            <button class="big-roll-btn" id="rollAllBtn">&#127922; 掷骰决定属性</button>
+        </div>
+
+        <div class="attrs-grid" id="attrsGrid">
+            <div class="attr-card">
+                <div class="abbr">STR</div>
+                <div class="fullname">力量</div>
+                <div class="dice-formula">3D6 &#215; 5</div>
+                <div class="value" id="attrStr">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barStr" style="width:0%"></div></div>
+            </div>
+            <div class="attr-card">
+                <div class="abbr">CON</div>
+                <div class="fullname">体质</div>
+                <div class="dice-formula">3D6 &#215; 5</div>
+                <div class="value" id="attrCon">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barCon" style="width:0%"></div></div>
+            </div>
+            <div class="attr-card">
+                <div class="abbr">SIZ</div>
+                <div class="fullname">体型</div>
+                <div class="dice-formula">(2D6+6) &#215; 5</div>
+                <div class="value" id="attrSiz">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barSiz" style="width:0%"></div></div>
+            </div>
+            <div class="attr-card">
+                <div class="abbr">DEX</div>
+                <div class="fullname">敏捷</div>
+                <div class="dice-formula">3D6 &#215; 5</div>
+                <div class="value" id="attrDex">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barDex" style="width:0%"></div></div>
+            </div>
+            <div class="attr-card">
+                <div class="abbr">APP</div>
+                <div class="fullname">外貌</div>
+                <div class="dice-formula">3D6 &#215; 5</div>
+                <div class="value" id="attrApp">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barApp" style="width:0%"></div></div>
+            </div>
+            <div class="attr-card">
+                <div class="abbr">INT</div>
+                <div class="fullname">智力</div>
+                <div class="dice-formula">(2D6+6) &#215; 5</div>
+                <div class="value" id="attrInt">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barInt" style="width:0%"></div></div>
+            </div>
+            <div class="attr-card">
+                <div class="abbr">POW</div>
+                <div class="fullname">意志</div>
+                <div class="dice-formula">3D6 &#215; 5</div>
+                <div class="value" id="attrPow">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barPow" style="width:0%"></div></div>
+            </div>
+            <div class="attr-card">
+                <div class="abbr">EDU</div>
+                <div class="fullname">教育</div>
+                <div class="dice-formula">(2D6+6) &#215; 5</div>
+                <div class="value" id="attrEdu">--</div>
+                <div class="attr-bar-small"><div class="fill" id="barEdu" style="width:0%"></div></div>
+            </div>
+        </div>
+
+        <!-- 衍生属性预览 -->
+        <div id="derivedPreview" style="display:none;">
+            <h3 style="color:#aaa; font-size:15px; margin:16px 0 8px 0;">&#9889; 衍生属性预览</h3>
+            <div class="derived-grid-2" id="derivedGrid">
+                <div class="derived-box"><div class="label">HP</div><div class="val hp" id="dHp">--</div></div>
+                <div class="derived-box"><div class="label">SAN</div><div class="val san" id="dSan">--</div></div>
+                <div class="derived-box"><div class="label">MP</div><div class="val mp" id="dMp">--</div></div>
+                <div class="derived-box"><div class="label">&#127922; 幸运</div><div class="val luck" id="dLuck">--</div></div>
+                <div class="derived-box"><div class="label">伤害加值</div><div class="val db" id="dDb">--</div></div>
+                <div class="derived-box"><div class="label">体格</div><div class="val build" id="dBuild">--</div></div>
+                <div class="derived-box"><div class="label">移动速度</div><div class="val mov" id="dMov">--</div></div>
+                <div class="derived-box"><div class="label">闪避</div><div class="val dodge" id="dDodge">--</div></div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:12px;">
+            <button class="roll-btn-sm" id="rerollBtn" style="display:none;">&#127922; 重新掷骰</button>
+        </div>
+    </div>
+
+    <!-- ===== Step 2: 职业与技能 ===== -->
+    <div class="panel" id="panel2">
+        <h2>&#128188; 第三步：选择职业与分配技能</h2>
+        <p class="desc">选择一个职业，然后将技能点分配到各个技能上。职业决定了你擅长的领域。</p>
+
+        <h3 style="color:#aaa; font-size:15px; margin:0 0 8px 0;">选择职业</h3>
+        <div class="occupation-grid" id="occGrid"></div>
+
+        <div id="skillAllocArea" style="display:none;">
+            <div class="skill-allocation">
+                <div class="skill-column" id="occSkillCol">
+                    <h4>&#128188; 职业技能</h4>
+                    <div class="points-left" id="occPointsLeft">剩余点数：--</div>
+                    <div id="occSkillList"></div>
+                </div>
+                <div class="skill-column" id="intSkillCol">
+                    <h4>&#128218; 个人兴趣技能</h4>
+                    <div class="points-left" id="intPointsLeft">剩余点数：--</div>
+                    <div class="skill-picker" id="intSkillPicker">
+                        <select id="intSkillSelect"><option value="">-- 选择技能添加 --</option></select>
+                        <button class="add-skill-btn" id="addIntSkillBtn" onclick="addIntSkill()">+ 添加</button>
+                    </div>
+                    <div id="intSkillList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Step 3: 背景故事 ===== -->
+    <div class="panel" id="panel3">
+        <h2>&#128214; 第四步：构思角色背景</h2>
+        <p class="desc">背景故事是角色的灵魂。花点时间思考你的调查员为何踏上这条探寻未知的道路。</p>
+
+        <!-- AI 一键生成工具栏 -->
+        <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center; background:#1e1e1e; border-radius:12px; padding:14px 18px; border:1px solid #3a3a3a;">
+            <span style="color:#aaa; font-size:13px; font-weight:bold;">&#129302; AI 背景生成</span>
+            <button class="roll-btn-sm" id="aiGenAllBackstoryBtn" style="background:linear-gradient(135deg,#9b59b6,#8e44ad); flex:1; min-width:160px; padding:10px 20px; font-size:14px;">
+                &#129302; AI 一键生成全部背景
+            </button>
+            <span style="color:#666; font-size:11px;">基于职业与属性智能生成</span>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group full" style="position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label>个人描述（外貌、气质、谈吐）</label>
+                    <button class="ai-gen-field-btn" data-field="appearance" style="font-size:11px; padding:3px 12px; border-radius:12px; border:1px solid #6a3a8a; background:transparent; color:#b07dd8; cursor:pointer; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background='#2a1a3a'" onmouseout="this.style.background='transparent'">&#129302; AI 生成</button>
+                </div>
+                <textarea id="charAppearance" rows="3" placeholder="如：身高175cm，瘦削身材，戴着一副金丝眼镜，总是穿着得体的西装。说话温和而有条理。"></textarea>
+            </div>
+            <div class="form-group full" style="position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label>思想与信念</label>
+                    <button class="ai-gen-field-btn" data-field="ideology" style="font-size:11px; padding:3px 12px; border-radius:12px; border:1px solid #6a3a8a; background:transparent; color:#b07dd8; cursor:pointer; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background='#2a1a3a'" onmouseout="this.style.background='transparent'">&#129302; AI 生成</button>
+                </div>
+                <textarea id="charIdeology" rows="2" placeholder="角色相信什么？有宗教信仰或坚定的信念吗？"></textarea>
+            </div>
+            <div class="form-group full" style="position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label>重要之人</label>
+                    <button class="ai-gen-field-btn" data-field="important" style="font-size:11px; padding:3px 12px; border-radius:12px; border:1px solid #6a3a8a; background:transparent; color:#b07dd8; cursor:pointer; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background='#2a1a3a'" onmouseout="this.style.background='transparent'">&#129302; AI 生成</button>
+                </div>
+                <textarea id="charImportant" rows="2" placeholder="谁对角色影响最深？家人、导师、朋友？"></textarea>
+            </div>
+            <div class="form-group full" style="position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label>意义非凡之地</label>
+                    <button class="ai-gen-field-btn" data-field="place" style="font-size:11px; padding:3px 12px; border-radius:12px; border:1px solid #6a3a8a; background:transparent; color:#b07dd8; cursor:pointer; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background='#2a1a3a'" onmouseout="this.style.background='transparent'">&#129302; AI 生成</button>
+                </div>
+                <textarea id="charPlace" rows="2" placeholder="有特殊意义的地点，如童年故居、常去的图书馆等"></textarea>
+            </div>
+            <div class="form-group full" style="position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label>宝贵之物</label>
+                    <button class="ai-gen-field-btn" data-field="treasure" style="font-size:11px; padding:3px 12px; border-radius:12px; border:1px solid #6a3a8a; background:transparent; color:#b07dd8; cursor:pointer; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background='#2a1a3a'" onmouseout="this.style.background='transparent'">&#129302; AI 生成</button>
+                </div>
+                <textarea id="charTreasure" rows="2" placeholder="有什么特别的物品？传家宝、日记、护身符？"></textarea>
+            </div>
+            <div class="form-group full" style="position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label>特质与伤疤</label>
+                    <button class="ai-gen-field-btn" data-field="traits" style="font-size:11px; padding:3px 12px; border-radius:12px; border:1px solid #6a3a8a; background:transparent; color:#b07dd8; cursor:pointer; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background='#2a1a3a'" onmouseout="this.style.background='transparent'">&#129302; AI 生成</button>
+                </div>
+                <textarea id="charTraits" rows="2" placeholder="独特的性格特点、伤疤或恐惧"></textarea>
+            </div>
+            <div class="form-group full" style="position:relative;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label>完整背景故事</label>
+                    <button class="ai-gen-field-btn" data-field="backstory" style="font-size:11px; padding:3px 12px; border-radius:12px; border:1px solid #6a3a8a; background:transparent; color:#b07dd8; cursor:pointer; transition:all 0.2s; white-space:nowrap;" onmouseover="this.style.background='#2a1a3a'" onmouseout="this.style.background='transparent'">&#129302; AI 生成</button>
+                </div>
+                <textarea id="charBackstory" rows="5" placeholder="详细叙述角色的过往经历……"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Step 4: 装备 ===== -->
+    <div class="panel" id="panel4">
+        <h2>&#127890; 第五步：购置装备与物品</h2>
+        <p class="desc">选择一个适合你角色身份的随身物品。点击选择/取消，也可以手动添加自定义物品。</p>
+
+        <h3 style="color:#aaa; font-size:14px; margin:0 0 8px 0;">建议装备（点击选择）</h3>
+        <div class="equip-grid" id="equipGrid"></div>
+
+        <h3 style="color:#aaa; font-size:14px; margin:16px 0 8px 0;">自定义添加</h3>
+        <div class="equip-custom-input">
+            <input type="text" id="customEquipInput" placeholder="输入物品名称">
+            <button class="roll-btn-sm" id="addCustomEquipBtn">添加</button>
+        </div>
+        <div style="margin-top:10px;">
+            <span style="color:#888; font-size:13px;">已选物品：</span>
+            <span id="selectedEquipList" style="color:#aaa; font-size:13px;">（无）</span>
+        </div>
+    </div>
+
+    <!-- ===== Step 5: 确认保存 ===== -->
+    <div class="panel" id="panel5">
+        <h2>&#9989; 第六步：确认角色卡</h2>
+        <p class="desc">请仔细检查你的调查员信息，确认无误后点击保存。</p>
+
+        <div id="reviewContent"></div>
+    </div>
+
+    <!-- 导航按钮 -->
+    <div class="nav-buttons">
+        <button class="btn-prev" id="prevBtn" disabled>&#8592; 上一步</button>
+        <button class="btn-next" id="nextBtn">下一步 &#8594;</button>
+        <button class="btn-save" id="saveBtn" style="display:none;">&#10003; 保存角色卡</button>
+    </div>
+</div>
+
+<!-- Toast 消息 -->
+<div class="toast" id="toast"></div>
+
+<script>
+    // ====== 状态管理 ======
+    const state = {
+        currentStep: 0,
+        attributes: null,
+        derived: null,
+        occupation: null,
+        occSkills: {},
+        intSkills: {},
+        occPoints: 0,
+        intPoints: 0,
+        selectedItems: [],
+        // 基础技能值 (CoC 7th 默认)
+        baseSkills: {
+            "会计": 5, "人类学": 1, "估价": 5, "考古学": 1,
+            "艺术(任意)": 5, "魅惑": 15, "攀爬": 20, "信用评级": 0,
+            "克苏鲁神话": 0, "闪避": 0, "汽车驾驶": 20, "电气维修": 10,
+            "话术": 5, "格斗(斗殴)": 25, "射击(手枪)": 20, "射击(步枪)": 25,
+            "急救": 30, "历史": 5, "恐吓": 15, "跳跃": 20,
+            "母语(中文)": 0, "法律": 5, "图书馆使用": 20, "聆听": 20,
+            "锁匠": 1, "机械维修": 10, "医学": 1, "博物学": 10,
+            "导航": 10, "神秘学": 5, "操作重型机械": 1, "说服": 10,
+            "心理学": 10, "读唇": 1, "侦查": 25, "潜行": 20,
+            "生存": 10, "游泳": 20, "投掷": 20, "追踪": 10
+        },
+        allOccupations: []
+    };
+
+    const ATTR_KEYS = ['str','con','siz','dex','app','int','pow','edu'];
+    const STEP_COUNT = 6;
+
+    // ====== 加载职业数据 ======
+    async function loadOccupations() {
+        try {
+            const resp = await fetch('/api/occupations');
+            state.allOccupations = await resp.json();
+            renderOccupations();
+            // 填充 Step0 的职业下拉
+            const sel = document.getElementById('charOccupationSimple');
+            sel.innerHTML = '<option value="">（将在第三步选择）</option>';
+            state.allOccupations.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.id;
+                opt.textContent = o.name;
+                sel.appendChild(opt);
+            });
+        } catch(e) {
+            console.error('加载职业失败', e);
+        }
+    }
+
+    // ====== 渲染职业 ======
+    function renderOccupations() {
+        const grid = document.getElementById('occGrid');
+        grid.innerHTML = '';
+        state.allOccupations.forEach(o => {
+            const card = document.createElement('div');
+            card.className = 'occ-card' + (state.occupation && state.occupation.id === o.id ? ' selected' : '');
+            card.innerHTML = `
+                <div class="occ-name">${o.name}</div>
+                <div class="occ-desc">${o.description}</div>
+                <div class="occ-credit">&#127974; 信用评级：${o.credit_range}</div>
+                <div class="occ-skills">&#128221; ${o.skills.join('、')}</div>
+            `;
+            card.onclick = (function(el, occ) { return function() { selectOccupation(occ, el); }; })(card, o);
+            grid.appendChild(card);
+        });
+    }
+
+    // ====== 选择职业 ======
+    function selectOccupation(occ, el) {
+        state.occupation = occ;
+        // 更新 UI
+        document.querySelectorAll('.occ-card').forEach(c => c.classList.remove('selected'));
+        if (el) el.classList.add('selected');
+
+        // 计算职业技能点：EDU 属性值(3-18) x 2
+        const eduPct = state.attributes ? state.attributes.edu : 50;
+        const eduVal = Math.floor(eduPct / 5);
+        const baseOccPoints = eduVal * 2;
+        state.occPoints = baseOccPoints;
+
+        // 个人兴趣点：INT 属性值(3-18) x 10
+        const intPct = state.attributes ? state.attributes.int : 50;
+        const intVal = Math.floor(intPct / 5);
+        state.intPoints = intVal * 10;
+
+        // 初始化职业技能
+        state.occSkills = {};
+        occ.skills.forEach(s => {
+            state.occSkills[s] = state.baseSkills[s] || 0;
+        });
+
+        // 个人兴趣技能初始为空——玩家自行选择感兴趣的技能添加
+        state.intSkills = {};
+
+        document.getElementById('skillAllocArea').style.display = 'block';
+        renderSkillAllocation();
+    }
+
+    // ====== 渲染技能分配 ======
+    function renderSkillAllocation() {
+        if (!state.occupation) return;
+
+        // ---- 职业技能 ----
+        document.getElementById('occPointsLeft').textContent = `剩余点数：${state.occPoints}`;
+        const occList = document.getElementById('occSkillList');
+        occList.innerHTML = '';
+        state.occupation.skills.forEach(s => {
+            const val = state.occSkills[s] || 0;
+            const base = state.baseSkills[s] || 0;
+            const row = document.createElement('div');
+            row.className = 'skill-row';
+            row.innerHTML = `
+                <span class="sname">${s}</span>
+                <span class="sbase">(基础${base}%)</span>
+                <div class="scontrols">
+                    <button onclick="adjustOccSkill('${s}', -1)" id="occDec_${s}">-</button>
+                    <span class="sval">${val}%</span>
+                    <button onclick="adjustOccSkill('${s}', 1)" id="occInc_${s}">+</button>
+                </div>
+            `;
+            occList.appendChild(row);
+        });
+
+        // ---- 个人兴趣技能（技能选择器模式）----
+        document.getElementById('intPointsLeft').textContent = `剩余点数：${state.intPoints}`;
+        const intList = document.getElementById('intSkillList');
+        intList.innerHTML = '';
+
+        const selectedSkills = Object.keys(state.intSkills);
+        if (selectedSkills.length === 0) {
+            intList.innerHTML = '<div class="empty-hint">请从上方下拉菜单选择感兴趣的技能添加到此处 &#128221;</div>';
+        } else {
+            selectedSkills.sort().forEach(s => {
+                const val = state.intSkills[s] || 0;
+                const base = state.baseSkills[s] || 0;
+                const row = document.createElement('div');
+                row.className = 'skill-row';
+                row.innerHTML = `
+                    <button class="sremove" onclick="removeIntSkill('${s}')" title="移除该技能">&#10005;</button>
+                    <span class="sname">${s}</span>
+                    <span class="sbase">(基础${base}%)</span>
+                    <div class="scontrols">
+                        <button onclick="adjustIntSkill('${s}', -1)" id="intDec_${s}">-</button>
+                        <span class="sval">${val}%</span>
+                        <button onclick="adjustIntSkill('${s}', 1)" id="intInc_${s}">+</button>
+                    </div>
+                `;
+                intList.appendChild(row);
+            });
+        }
+
+        renderIntSkillPicker();
+        updateSkillButtons();
+    }
+
+    // ====== 调整技能 ======
+    function adjustOccSkill(skill, delta) {
+        const current = state.occSkills[skill] || 0;
+        const cost = 1;
+        if (delta > 0 && state.occPoints < cost) return;
+        if (delta < 0 && current <= (state.baseSkills[skill] || 0)) return;
+        if (delta > 0 && current >= 85) return; // 单个技能上限
+
+        const newVal = current + delta * cost;
+        state.occSkills[skill] = newVal;
+        state.occPoints -= delta * cost;
+
+        // 同步个人兴趣技能中的同名技能
+        if (state.intSkills[skill] !== undefined) {
+            state.intSkills[skill] = newVal;
+        }
+
+        renderSkillAllocation();
+    }
+
+    function adjustIntSkill(skill, delta) {
+        const current = state.intSkills[skill] || 0;
+        const cost = 1;
+        if (delta > 0 && state.intPoints < cost) return;
+        if (delta < 0 && current <= (state.baseSkills[skill] || 0)) return;
+        if (delta > 0 && current >= 85) return;
+
+        const newVal = current + delta * cost;
+        state.intSkills[skill] = newVal;
+        state.intPoints -= delta * cost;
+
+        // 如果是职业技能，也同步职业技能值
+        if (state.occSkills[skill] !== undefined && newVal > state.occSkills[skill]) {
+            state.occSkills[skill] = newVal;
+        }
+
+        renderSkillAllocation();
+    }
+
+    // ====== 渲染技能选择器下拉菜单 ======
+    function renderIntSkillPicker() {
+        const select = document.getElementById('intSkillSelect');
+        const addBtn = document.getElementById('addIntSkillBtn');
+        if (!select) return;
+
+        // 找出所有尚未添加到 intSkills 的技能
+        const available = Object.keys(state.baseSkills)
+            .filter(s => state.intSkills[s] === undefined)
+            .sort();
+
+        if (available.length === 0) {
+            select.innerHTML = '<option value="">-- 已添加所有可用技能 --</option>';
+            select.disabled = true;
+            addBtn.disabled = true;
+            return;
+        }
+        select.disabled = false;
+        addBtn.disabled = false;
+        select.innerHTML = '<option value="">-- 选择技能添加 --</option>';
+        available.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = `${s} (基础${state.baseSkills[s]}%)`;
+            select.appendChild(opt);
+        });
+    }
+
+    // ====== 添加个人兴趣技能 ======
+    function addIntSkill() {
+        const select = document.getElementById('intSkillSelect');
+        const skill = select.value;
+        if (!skill) return;
+
+        // 以当前值加入（如果是职业技能则取职业技能当前值，否则取基础值）
+        const startVal = (state.occSkills[skill] !== undefined) ? state.occSkills[skill] : (state.baseSkills[skill] || 0);
+        state.intSkills[skill] = startVal;
+        renderSkillAllocation();
+    }
+
+    // ====== 移除个人兴趣技能（退还所有投入点数） ======
+    function removeIntSkill(skill) {
+        if (state.intSkills[skill] === undefined) return;
+        const current = state.intSkills[skill];
+        const base = state.baseSkills[skill] || 0;
+        const spent = current - base;
+        if (spent > 0) {
+            state.intPoints += spent;
+            // 如果也是职业技能，同步回退职业技能值
+            if (state.occSkills[skill] !== undefined) {
+                state.occSkills[skill] = base;
+            }
+        }
+        delete state.intSkills[skill];
+        renderSkillAllocation();
+    }
+
+    function updateSkillButtons() {
+        // 更新按钮禁用状态
+        if (state.occupation) {
+            state.occupation.skills.forEach(s => {
+                const val = state.occSkills[s] || 0;
+                const base = state.baseSkills[s] || 0;
+                const incBtn = document.getElementById(`occInc_${s}`);
+                const decBtn = document.getElementById(`occDec_${s}`);
+                if (incBtn) incBtn.disabled = state.occPoints < 1 || val >= 85;
+                if (decBtn) decBtn.disabled = val <= base;
+            });
+        }
+        // 只遍历已选中的兴趣技能
+        Object.keys(state.intSkills).forEach(s => {
+            const val = state.intSkills[s] || 0;
+            const base = state.baseSkills[s] || 0;
+            const incBtn = document.getElementById(`intInc_${s}`);
+            const decBtn = document.getElementById(`intDec_${s}`);
+            if (incBtn) incBtn.disabled = state.intPoints < 1 || val >= 85;
+            if (decBtn) decBtn.disabled = val <= base;
+        });
+    }
+
+    // ====== 预设装备 ======
+    const EQUIPMENT_PRESETS = [
+        '手电筒', '小刀', '笔记本', '钢笔', '急救包',
+        '火柴/打火机', '绳索(10m)', '水壶', '干粮', '雨衣',
+        '折叠铲', '指南针', '地图', '照相机', '望远镜',
+        '怀表', '钥匙串', '钱包', '公文包', '背包',
+        '左轮手枪', '烟斗', '圣经', '医药箱', '撬棍'
+    ];
+
+    function renderEquipment() {
+        const grid = document.getElementById('equipGrid');
+        grid.innerHTML = '';
+        EQUIPMENT_PRESETS.forEach(item => {
+            const tag = document.createElement('span');
+            tag.className = 'equip-tag' + (state.selectedItems.includes(item) ? ' selected' : '');
+            tag.textContent = item;
+            tag.onclick = () => toggleItem(item);
+            grid.appendChild(tag);
+        });
+        updateEquipList();
+    }
+
+    function toggleItem(item) {
+        const idx = state.selectedItems.indexOf(item);
+        if (idx >= 0) {
+            state.selectedItems.splice(idx, 1);
+        } else {
+            state.selectedItems.push(item);
+        }
+        renderEquipment();
+    }
+
+    function updateEquipList() {
+        const el = document.getElementById('selectedEquipList');
+        if (state.selectedItems.length === 0) {
+            el.textContent = '（无）';
+        } else {
+            el.textContent = state.selectedItems.join('、');
+        }
+    }
+
+    // ====== 掷骰属性 ======
+    async function rollAttributes() {
+        const btn = document.getElementById('rollAllBtn');
+        btn.disabled = true;
+        btn.textContent = '&#127922; 掷骰中...';
+
+        try {
+            const resp = await fetch('/api/roll-attributes', { method: 'POST' });
+            const data = await resp.json();
+            state.attributes = data.attributes;
+            state.derived = data.derived;
+
+            // 更新属性显示
+            ATTR_KEYS.forEach(k => {
+                const el = document.getElementById(`attr${k.charAt(0).toUpperCase() + k.slice(1)}`);
+                if (el) {
+                    el.textContent = state.attributes[k];
+                    el.className = 'value rolled';
+                    setTimeout(() => el.className = 'value', 500);
+                }
+                const bar = document.getElementById(`bar${k.charAt(0).toUpperCase() + k.slice(1)}`);
+                if (bar) {
+                    bar.style.width = Math.min(100, state.attributes[k]) + '%';
+                }
+            });
+
+            // 更新衍生属性
+            document.getElementById('derivedPreview').style.display = 'block';
+            document.getElementById('dHp').textContent = state.derived.hp;
+            document.getElementById('dSan').textContent = state.derived.san;
+            document.getElementById('dMp').textContent = state.derived.mp;
+            document.getElementById('dLuck').textContent = state.derived.luck;
+            document.getElementById('dDb').textContent = state.derived.damage_bonus;
+            document.getElementById('dBuild').textContent = state.derived.build;
+            document.getElementById('dMov').textContent = state.derived.mov;
+            document.getElementById('dDodge').textContent = state.derived.dodge;
+
+            document.getElementById('rerollBtn').style.display = 'inline-block';
+        } catch(e) {
+            console.error('掷骰失败', e);
+            showToast('掷骰失败，请重试', true);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '&#127922; 掷骰决定属性';
+        }
+    }
+
+    // ====== 导航 ======
+    function goToStep(step) {
+        // 验证当前步骤
+        if (step > state.currentStep) {
+            if (!validateStep(state.currentStep)) return;
+        }
+
+        state.currentStep = step;
+        updateUI();
+    }
+
+    function validateStep(step) {
+        switch(step) {
+            case 0: // 基本信息
+                const name = document.getElementById('charName').value.trim();
+                if (!name) {
+                    showToast('请输入角色姓名', true);
+                    return false;
+                }
+                return true;
+            case 1: // 属性必须已掷骰
+                if (!state.attributes) {
+                    showToast('请先掷骰决定属性', true);
+                    return false;
+                }
+                return true;
+            case 2: // 必须选择职业
+                if (!state.occupation) {
+                    showToast('请选择一个职业', true);
+                    return false;
+                }
+                return true;
+            case 3: case 4: return true;
+            default: return true;
+        }
+    }
+
+    function updateUI() {
+        // 更新面板
+        for (let i = 0; i < STEP_COUNT; i++) {
+            const panel = document.getElementById(`panel${i}`);
+            panel.classList.toggle('active', i === state.currentStep);
+            const dot = document.getElementById(`stepDot${i}`);
+            dot.classList.toggle('active', i === state.currentStep);
+            dot.classList.toggle('done', i < state.currentStep);
+        }
+
+        // 更新按钮
+        document.getElementById('prevBtn').disabled = state.currentStep === 0;
+        const isLast = state.currentStep === STEP_COUNT - 1;
+        document.getElementById('nextBtn').style.display = isLast ? 'none' : '';
+        document.getElementById('saveBtn').style.display = isLast ? '' : 'none';
+
+        // 如果是确认页，生成预览
+        if (isLast) {
+            generateReview();
+        }
+    }
+
+    // ====== 生成确认页 ======
+    function generateReview() {
+        const container = document.getElementById('reviewContent');
+        const name = document.getElementById('charName').value.trim() || '调查员';
+        const gender = document.getElementById('charGender').value;
+        const age = document.getElementById('charAge').value;
+        const era = document.getElementById('charEra').value.trim() || '1920年代';
+        const nationality = document.getElementById('charNationality').value;
+        const residence = document.getElementById('charResidence').value;
+        const personality = document.getElementById('charPersonality').value;
+        const interests = document.getElementById('charInterests').value;
+
+        // 合并所有技能
+        const mergedSkills = {};
+        if (state.occupation) {
+            state.occupation.skills.forEach(s => {
+                if (state.intSkills[s] !== undefined) {
+                    mergedSkills[s] = state.intSkills[s];
+                } else if (state.occSkills[s] !== undefined) {
+                    mergedSkills[s] = state.occSkills[s];
+                }
+            });
+        }
+        // 补充个人兴趣中非职业技能
+        for (const [s, v] of Object.entries(state.intSkills)) {
+            if (mergedSkills[s] === undefined) {
+                mergedSkills[s] = v;
+            }
+        }
+        // 如果有职业技能不在个人兴趣中
+        if (state.occupation) {
+            state.occupation.skills.forEach(s => {
+                if (mergedSkills[s] === undefined && state.occSkills[s] !== undefined) {
+                    mergedSkills[s] = state.occSkills[s];
+                }
+            });
+        }
+
+        // 排序技能
+        const sortedSkills = Object.entries(mergedSkills).sort((a, b) => b[1] - a[1]);
+
+        // 生成属性HTML
+        let attrHtml = '';
+        const attrLabels = {
+            str: 'STR 力量', con: 'CON 体质', siz: 'SIZ 体型', dex: 'DEX 敏捷',
+            app: 'APP 外貌', int: 'INT 智力', pow: 'POW 意志', edu: 'EDU 教育'
+        };
+        if (state.attributes) {
+            ATTR_KEYS.forEach(k => {
+                attrHtml += `<div class="review-item"><span class="rl">${attrLabels[k]}:</span> <span class="rv">${state.attributes[k]}</span></div>`;
+            });
+        }
+
+        // 生成衍生属性HTML
+        let derivHtml = '';
+        const derivLabels = {
+            hp: 'HP', san: 'SAN', mp: 'MP', luck: '幸运',
+            damage_bonus: '伤害加值', build: '体格', mov: '移动', dodge: '闪避'
+        };
+        if (state.derived) {
+            Object.entries(derivLabels).forEach(([k, label]) => {
+                const v = state.derived[k] !== undefined ? state.derived[k] : '--';
+                derivHtml += `<div class="review-item"><span class="rl">${label}:</span> <span class="rv">${v}</span></div>`;
+            });
+        }
+
+        // 技能HTML
+        let skillHtml = '';
+        sortedSkills.forEach(([name, val]) => {
+            skillHtml += `<div class="rs"><span class="rsn">${name}:</span> <span class="rsv">${val}%</span></div>`;
+        });
+
+        // 背景故事字段
+        const backstory = document.getElementById('charBackstory').value.trim();
+        const appearance = document.getElementById('charAppearance').value.trim();
+        const ideology = document.getElementById('charIdeology').value.trim();
+        const important = document.getElementById('charImportant').value.trim();
+        const place = document.getElementById('charPlace').value.trim();
+        const treasure = document.getElementById('charTreasure').value.trim();
+        const traits = document.getElementById('charTraits').value.trim();
+
+        // 构建富背景故事展示
+        function buildStoryHtml() {
+            let html = '';
+            if (appearance) html += `<div style="margin-bottom:10px;"><span style="color:#ffd966;font-weight:bold;">&#128100; 个人描述：</span><span style="color:#bbb;">${escapeHtml(appearance)}</span></div>`;
+            if (ideology) html += `<div style="margin-bottom:8px;"><span style="color:#ffd966;font-weight:bold;">&#10022; 思想与信念：</span><span style="color:#bbb;">${escapeHtml(ideology)}</span></div>`;
+            if (important) html += `<div style="margin-bottom:8px;"><span style="color:#ffd966;font-weight:bold;">&#10022; 重要之人：</span><span style="color:#bbb;">${escapeHtml(important)}</span></div>`;
+            if (place) html += `<div style="margin-bottom:8px;"><span style="color:#ffd966;font-weight:bold;">&#10022; 意义非凡之地：</span><span style="color:#bbb;">${escapeHtml(place)}</span></div>`;
+            if (treasure) html += `<div style="margin-bottom:8px;"><span style="color:#ffd966;font-weight:bold;">&#10022; 宝贵之物：</span><span style="color:#bbb;">${escapeHtml(treasure)}</span></div>`;
+            if (traits) html += `<div style="margin-bottom:8px;"><span style="color:#ffd966;font-weight:bold;">&#10022; 特质与伤疤：</span><span style="color:#bbb;">${escapeHtml(traits)}</span></div>`;
+            if (backstory) html += `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #333;"><span style="color:#ffd966;font-weight:bold;">&#128214; 完整背景故事：</span><div style="color:#bbb; font-size:13px; line-height:1.6; white-space:pre-wrap; margin-top:6px;">${escapeHtml(backstory)}</div></div>`;
+            return html || '<span style="color:#555;">未填写背景信息</span>';
+        }
+
+        container.innerHTML = `
+            <div class="review-section">
+                <h3>&#128100; 基本信息</h3>
+                <div class="review-grid">
+                    <div class="review-item"><span class="rl">姓名：</span><span class="rv">${name}</span></div>
+                    <div class="review-item"><span class="rl">性别：</span><span class="rv">${gender}</span></div>
+                    <div class="review-item"><span class="rl">年龄：</span><span class="rv">${age}</span></div>
+                    <div class="review-item"><span class="rl">年代：</span><span class="rv">${era}</span></div>
+                    <div class="review-item"><span class="rl">国籍：</span><span class="rv">${nationality}</span></div>
+                    <div class="review-item"><span class="rl">居住地：</span><span class="rv">${residence}</span></div>
+                    <div class="review-item"><span class="rl">职业：</span><span class="rv">${state.occupation ? state.occupation.name : '未选择'}</span></div>
+                </div>
+                ${personality ? `<div style="margin-top:8px;"><span class="rl">性格：</span><span class="rv">${escapeHtml(personality)}</span></div>` : ''}
+                ${interests ? `<div><span class="rl">兴趣：</span><span class="rv">${escapeHtml(interests)}</span></div>` : ''}
+            </div>
+
+            <div class="review-section">
+                <h3>&#9889; 八维属性</h3>
+                <div class="review-grid">${attrHtml}</div>
+            </div>
+
+            <div class="review-section">
+                <h3>&#9889; 衍生属性</h3>
+                <div class="review-grid">${derivHtml}</div>
+            </div>
+
+            <div class="review-section">
+                <h3>&#128221; 技能 (${sortedSkills.length})</h3>
+                <div class="review-skills">${skillHtml}</div>
+            </div>
+
+            <div class="review-section">
+                <h3>&#127890; 物品 (${state.selectedItems.length})</h3>
+                <div>${state.selectedItems.length > 0 ? state.selectedItems.map(i => `<span class="equip-tag" style="cursor:default; background:#2a2a3a;">${escapeHtml(i)}</span>`).join(' ') : '<span style="color:#555;">无物品</span>'}</div>
+            </div>
+
+            <div class="review-section">
+                <h3>&#128214; 角色背景</h3>
+                ${buildStoryHtml()}
+            </div>
+        `;
+    }
+
+    // ====== 保存角色 ======
+    async function saveCharacter() {
+        const name = document.getElementById('charName').value.trim() || '调查员';
+        const gender = document.getElementById('charGender').value;
+        const age = parseInt(document.getElementById('charAge').value) || 25;
+        const nationality = document.getElementById('charNationality').value || '中国';
+        const residence = document.getElementById('charResidence').value || '上海';
+        const personality = document.getElementById('charPersonality').value || '';
+        const interests = document.getElementById('charInterests').value || '';
+        const appearance = document.getElementById('charAppearance').value || '';
+        const ideology = document.getElementById('charIdeology').value || '';
+        const important = document.getElementById('charImportant').value || '';
+        const place = document.getElementById('charPlace').value || '';
+        const treasure = document.getElementById('charTreasure').value || '';
+        const traits = document.getElementById('charTraits').value || '';
+        const backstory = document.getElementById('charBackstory').value || '';
+
+        // 合并所有背景字段为完整的背景故事
+        const fullBackstoryParts = [];
+        if (appearance) fullBackstoryParts.push(`【个人描述】${appearance}`);
+        if (ideology) fullBackstoryParts.push(`【思想与信念】${ideology}`);
+        if (important) fullBackstoryParts.push(`【重要之人】${important}`);
+        if (place) fullBackstoryParts.push(`【意义非凡之地】${place}`);
+        if (treasure) fullBackstoryParts.push(`【宝贵之物】${treasure}`);
+        if (traits) fullBackstoryParts.push(`【特质与伤疤】${traits}`);
+        if (backstory) fullBackstoryParts.push(`【完整背景】${backstory}`);
+        const combinedBackstory = fullBackstoryParts.join('\n\n');
+
+        if (!state.attributes) {
+            showToast('请先掷骰生成属性', true);
+            return;
+        }
+        if (!state.occupation) {
+            showToast('请选择一个职业', true);
+            return;
+        }
+
+        // 合并技能
+        const mergedSkills = {};
+        if (state.occupation) {
+            state.occupation.skills.forEach(s => {
+                mergedSkills[s] = state.intSkills[s] !== undefined ? state.intSkills[s] :
+                                 state.occSkills[s] !== undefined ? state.occSkills[s] : 0;
+            });
+        }
+        for (const [s, v] of Object.entries(state.intSkills)) {
+            if (mergedSkills[s] === undefined) {
+                mergedSkills[s] = v;
+            } else {
+                // 取最大值
+                mergedSkills[s] = Math.max(mergedSkills[s], v);
+            }
+        }
+        if (state.occupation) {
+            state.occupation.skills.forEach(s => {
+                if (state.occSkills[s] !== undefined) {
+                    mergedSkills[s] = Math.max(mergedSkills[s] || 0, state.occSkills[s]);
+                }
+            });
+        }
+
+        // 清理技能名中的特殊字符问题
+        const cleanSkills = {};
+        for (const [k, v] of Object.entries(mergedSkills)) {
+            cleanSkills[k] = v;
+        }
+
+        const era = document.getElementById('charEra').value.trim() || '1920年代';
+
+        const payload = {
+            base_info: {
+                name: name,
+                occupation: state.occupation.name,
+                age: age,
+                gender: gender,
+                era: era,
+                nationality: nationality,
+                residence: residence,
+                interests: interests,
+                personality: personality
+            },
+            attributes: state.attributes,
+            derived: state.derived,
+            skills: cleanSkills,
+            items: state.selectedItems,
+            backstory: combinedBackstory,
+            appearance: appearance
+        };
+
+        try {
+            const resp = await fetch('/api/save-character', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast(`&#10003; 角色「${result.name}」已成功创建！`);
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            } else {
+                showToast('保存失败，请重试', true);
+            }
+        } catch(e) {
+            console.error('保存失败', e);
+            showToast('保存失败，请检查网络连接', true);
+        }
+    }
+
+    // ====== Toast ======
+    function showToast(msg, isError = false) {
+        const el = document.getElementById('toast');
+        el.innerHTML = msg;
+        el.className = 'toast' + (isError ? ' error' : '');
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // ====== 工具 ======
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => {
+            if (m === '&') return '&';
+            if (m === '<') return '<';
+            if (m === '>') return '>';
+            return m;
+        });
+    }
+
+    // ====== AI 随机生成角色 ======
+    async function aiGenerateCharacter() {
+        const btn = document.getElementById('aiGenerateBtn');
+        btn.disabled = true;
+        btn.textContent = '&#129302; AI 生成中...';
+
+        const era = document.getElementById('charEra').value.trim() || '1920年代';
+
+        try {
+            const resp = await fetch('/api/ai-generate-character', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ era: era })
+            });
+            const result = await resp.json();
+
+            if (result.success && result.character) {
+                fillCharacterFromData(result.character);
+                showToast('&#10003; AI 已生成角色！请到各步骤查看和微调');
+            } else {
+                showToast('AI 生成失败，请重试', true);
+            }
+        } catch(e) {
+            console.error('AI 生成失败', e);
+            showToast('AI 生成失败，请检查网络', true);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '&#129302; AI 随机生成角色';
+        }
+    }
+
+    // ====== 快速预设角色（本地随机，无需 AI） ======
+    function quickPresetCharacter() {
+        const firstNames = ['张', '李', '王', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '马', '朱', '胡', '郭', '林', '何', '高', '罗'];
+        const lastNames = ['明远', '伟强', '志刚', '建国', '文博', '天宇', '浩宇', '俊杰', '瑞轩', '雨泽', '思远', '嘉懿', '浩然', '梓睿', '铭泽'];
+        const occNames = state.allOccupations.map(o => o.name);
+        const personalities = ['谨慎而好奇', '勇敢无畏', '多疑谨慎', '仁慈善良', '冷静理性', '热情奔放', '沉默寡言', '幽默风趣', '坚韧不拔', '敏感多思'];
+        const interests = ['阅读古籍、摄影', '收集古玩、历史研究', '登山、野外探险', '音乐、绘画创作', '武术、格斗训练', '化学实验、科学研究', '写作、诗歌创作', '棋类、智力游戏'];
+        const residences = ['上海', '北京', '广州', '重庆', '南京', '杭州', '成都', '武汉', '西安', '天津'];
+
+        const name = firstNames[Math.floor(Math.random() * firstNames.length)] +
+                     lastNames[Math.floor(Math.random() * lastNames.length)];
+        const gender = Math.random() > 0.5 ? '男' : '女';
+        const age = Math.floor(Math.random() * 40) + 20;
+        const occ = occNames[Math.floor(Math.random() * occNames.length)];
+
+        document.getElementById('charName').value = name;
+        document.getElementById('charGender').value = gender;
+        document.getElementById('charAge').value = age;
+        document.getElementById('charNationality').value = '中国';
+        document.getElementById('charResidence').value = residences[Math.floor(Math.random() * residences.length)];
+        document.getElementById('charPersonality').value = personalities[Math.floor(Math.random() * personalities.length)];
+        document.getElementById('charInterests').value = interests[Math.floor(Math.random() * interests.length)];
+
+        // 自动掷骰属性
+        setTimeout(async () => {
+            await rollAttributes();
+
+            // 自动选择匹配的职业
+            const foundOcc = state.allOccupations.find(o => o.name === occ);
+            if (foundOcc) {
+                // 找到职业卡片元素并选中
+                const cards = document.querySelectorAll('.occ-card');
+                cards.forEach((card, idx) => {
+                    if (state.allOccupations[idx] && state.allOccupations[idx].name === occ) {
+                        selectOccupation(state.allOccupations[idx], card);
+                    }
+                });
+            }
+
+            // 随机分配一些技能点
+            if (state.occupation) {
+                state.occupation.skills.forEach(s => {
+                    const base = state.baseSkills[s] || 0;
+                    const add = Math.floor(Math.random() * 20) + 5;
+                    if (state.occPoints >= add && base + add <= 85) {
+                        state.occSkills[s] = base + add;
+                        state.occPoints -= add;
+                        // 职业技能也同步到兴趣技能（如果已添加）
+                        if (state.intSkills[s] !== undefined) {
+                            state.intSkills[s] = base + add;
+                        }
+                    }
+                });
+                // 随机分配兴趣点 - 选择若干技能添加到兴趣列表，再分配点数
+                const allSkillNames = Object.keys(state.baseSkills);
+                const targetCount = Math.min(3 + Math.floor(Math.random() * 4), allSkillNames.length);
+                const shuffled = [...allSkillNames].sort(() => Math.random() - 0.5);
+                for (let i = 0; i < targetCount && state.intPoints > 0; i++) {
+                    const s = shuffled[i];
+                    // 先以基础值加入
+                    if (state.intSkills[s] === undefined) {
+                        state.intSkills[s] = state.baseSkills[s] || 0;
+                    }
+                    // 再分配一些点数
+                    const current = state.intSkills[s];
+                    const add = Math.min(15 + Math.floor(Math.random() * 15), state.intPoints);
+                    if (current + add <= 85) {
+                        state.intSkills[s] = current + add;
+                        state.intPoints -= add;
+                    }
+                }
+                renderSkillAllocation();
+            }
+
+            // 随机选择几件物品
+            state.selectedItems = [];
+            const shuffled = [...EQUIPMENT_PRESETS].sort(() => Math.random() - 0.5);
+            const count = Math.floor(Math.random() * 4) + 2;
+            for (let i = 0; i < count && i < shuffled.length; i++) {
+                state.selectedItems.push(shuffled[i]);
+            }
+            renderEquipment();
+
+            showToast('&#10003; 快速预设角色已生成！');
+        }, 100);
+    }
+
+    // ====== 用数据填充整个表单 ======
+    function fillCharacterFromData(charData) {
+        const base = charData.base_info || {};
+        document.getElementById('charName').value = base.name || '调查员';
+        document.getElementById('charGender').value = base.gender || '男';
+        document.getElementById('charAge').value = base.age || 25;
+        document.getElementById('charEra').value = base.era || '1920年代';
+        document.getElementById('charNationality').value = base.nationality || '中国';
+        document.getElementById('charResidence').value = base.residence || '上海';
+        document.getElementById('charPersonality').value = base.personality || '';
+        document.getElementById('charInterests').value = base.interests || '';
+
+        // 填充属性
+        const attrs = charData.attributes || {};
+        state.attributes = attrs;
+
+        ATTR_KEYS.forEach(k => {
+            const el = document.getElementById(`attr${k.charAt(0).toUpperCase() + k.slice(1)}`);
+            if (el) {
+                el.textContent = attrs[k] || '--';
+                el.className = 'value rolled';
+                setTimeout(() => el.className = 'value', 500);
+            }
+            const bar = document.getElementById(`bar${k.charAt(0).toUpperCase() + k.slice(1)}`);
+            if (bar) {
+                bar.style.width = Math.min(100, (attrs[k] || 0)) + '%';
+            }
+        });
+
+        // 填充衍生属性
+        state.derived = charData.derived || {};
+        document.getElementById('derivedPreview').style.display = 'block';
+        document.getElementById('dHp').textContent = state.derived.hp || '--';
+        document.getElementById('dSan').textContent = state.derived.san || '--';
+        document.getElementById('dMp').textContent = state.derived.mp || '--';
+        document.getElementById('dLuck').textContent = state.derived.luck || '--';
+        document.getElementById('dDb').textContent = state.derived.damage_bonus || '--';
+        document.getElementById('dBuild').textContent = state.derived.build || '--';
+        document.getElementById('dMov').textContent = state.derived.mov || '--';
+        document.getElementById('dDodge').textContent = state.derived.dodge || '--';
+        document.getElementById('rerollBtn').style.display = 'inline-block';
+
+        // 填充物品
+        if (charData.items && Array.isArray(charData.items)) {
+            state.selectedItems = [...charData.items];
+            renderEquipment();
+        }
+
+        // 填充背景
+        document.getElementById('charAppearance').value = charData.appearance || '';
+        document.getElementById('charBackstory').value = charData.backstory || '';
+
+        // 填充职业 - 找到匹配的职业
+        const occName = base.occupation || '';
+        let foundOcc = state.allOccupations.find(o => occName.includes(o.name) || o.name.includes(occName));
+        if (!foundOcc) {
+            // 尝试模糊匹配
+            foundOcc = state.allOccupations.find(o => occName.includes(o.id) || o.id.includes(occName));
+        }
+        if (foundOcc) {
+            const cards = document.querySelectorAll('.occ-card');
+            cards.forEach((card, idx) => {
+                if (state.allOccupations[idx] && state.allOccupations[idx].id === foundOcc.id) {
+                    selectOccupation(foundOcc, card);
+                }
+            });
+        }
+
+        // 填充技能
+        const skills = charData.skills || {};
+        if (state.occupation) {
+            for (const [s, v] of Object.entries(skills)) {
+                // 职业技能
+                if (state.occSkills[s] !== undefined) {
+                    const base = state.baseSkills[s] || 0;
+                    const diff = v - base;
+                    if (diff > 0) {
+                        state.occSkills[s] = v;
+                        state.occPoints = Math.max(0, state.occPoints - diff);
+                    }
+                }
+                // 个人兴趣技能（从AI数据中添加）
+                if (state.intSkills[s] === undefined) {
+                    // 如果不在兴趣列表中，以基础值先添加
+                    state.intSkills[s] = state.baseSkills[s] || 0;
+                }
+                const current = state.intSkills[s] || 0;
+                if (v > current) {
+                    const diff = v - current;
+                    state.intSkills[s] = v;
+                    state.intPoints = Math.max(0, state.intPoints - diff);
+                }
+            }
+            renderSkillAllocation();
+        }
+
+        showToast('&#10003; AI 角色已填充完毕！可到各步骤微调');
+    }
+
+    // ====== AI 背景故事生成 ======
+    const FIELD_IDS = {
+        appearance: 'charAppearance',
+        ideology: 'charIdeology',
+        important: 'charImportant',
+        place: 'charPlace',
+        treasure: 'charTreasure',
+        traits: 'charTraits',
+        backstory: 'charBackstory'
+    };
+
+    async function aiGenerateBackstory(field) {
+        // 获取当前角色基本信息
+        const name = document.getElementById('charName').value.trim() || '调查员';
+        const gender = document.getElementById('charGender').value;
+        const age = parseInt(document.getElementById('charAge').value) || 25;
+        const era = document.getElementById('charEra').value.trim() || '1920年代';
+        const occupation = state.occupation ? state.occupation.name : '';
+        const attributes = state.attributes || {};
+
+        if (!occupation) {
+            showToast('请先在第三步选择职业', true);
+            return;
+        }
+        if (!attributes || Object.keys(attributes).length === 0) {
+            showToast('请先在第二步掷骰属性', true);
+            return;
+        }
+
+        // 按钮加载状态
+        const btnField = field === 'all'
+            ? document.getElementById('aiGenAllBackstoryBtn')
+            : document.querySelector(`.ai-gen-field-btn[data-field="${field}"]`);
+
+        if (btnField) {
+            const origText = btnField.innerHTML;
+            btnField.disabled = true;
+            btnField.innerHTML = '&#128736; 生成中...';
+        }
+
+        try {
+            const resp = await fetch('/api/ai-generate-backstory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    gender: gender,
+                    age: age,
+                    era: era,
+                    occupation: occupation,
+                    attributes: attributes,
+                    field: field
+                })
+            });
+            const result = await resp.json();
+
+            if (result.success && result.data) {
+                const data = result.data;
+                if (field === 'all') {
+                    // 填充所有字段
+                    for (const [key, fieldId] of Object.entries(FIELD_IDS)) {
+                        if (data[key]) {
+                            document.getElementById(fieldId).value = data[key];
+                        }
+                    }
+                    showToast('&#10003; 全部背景故事已由 AI 生成！');
+                } else if (data[field]) {
+                    document.getElementById(FIELD_IDS[field]).value = data[field];
+                    showToast(`&#10003; ${getFieldLabel(field)}已生成！`);
+                }
+                if (result.fallback) {
+                    showToast('&#9888; AI 超时，已使用本地模板生成', true);
+                }
+            } else {
+                showToast('生成失败，请重试', true);
+            }
+        } catch(e) {
+            console.error('AI 背景生成失败', e);
+            showToast('生成失败，请检查网络连接', true);
+        } finally {
+            if (btnField) {
+                btnField.disabled = false;
+                if (field === 'all') {
+                    btnField.innerHTML = '&#129302; AI 一键生成全部背景';
+                } else {
+                    btnField.innerHTML = '&#129302; AI 生成';
+                }
+            }
+        }
+    }
+
+    function getFieldLabel(field) {
+        const labels = {
+            appearance: '个人描述',
+            ideology: '思想与信念',
+            important: '重要之人',
+            place: '意义非凡之地',
+            treasure: '宝贵之物',
+            traits: '特质与伤疤',
+            backstory: '完整背景故事'
+        };
+        return labels[field] || field;
+    }
+
+    // ====== 事件绑定 ======
+    document.getElementById('rollAllBtn').addEventListener('click', rollAttributes);
+    document.getElementById('rerollBtn').addEventListener('click', rollAttributes);
+    document.getElementById('aiGenerateBtn').addEventListener('click', aiGenerateCharacter);
+    document.getElementById('quickPresetBtn').addEventListener('click', quickPresetCharacter);
+
+    // AI 背景生成按钮
+    document.getElementById('aiGenAllBackstoryBtn').addEventListener('click', () => aiGenerateBackstory('all'));
+    document.querySelectorAll('.ai-gen-field-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const field = this.getAttribute('data-field');
+            aiGenerateBackstory(field);
+        });
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => goToStep(state.currentStep - 1));
+    document.getElementById('nextBtn').addEventListener('click', () => goToStep(state.currentStep + 1));
+    document.getElementById('saveBtn').addEventListener('click', saveCharacter);
+
+    document.getElementById('addCustomEquipBtn').addEventListener('click', () => {
+        const input = document.getElementById('customEquipInput');
+        const item = input.value.trim();
+        if (item && !state.selectedItems.includes(item)) {
+            state.selectedItems.push(item);
+            renderEquipment();
+            input.value = '';
+        }
+    });
+
+    // ====== 初始化 ======
+    loadOccupations();
+    renderEquipment();
+    updateUI();
+</script>
+</body>
+</html>

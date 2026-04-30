@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI守秘人 - 克苏鲁呼唤</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a6cff">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', -apple-system, Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ===== 启动画面 ===== */
+        #splashScreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        #splashScreen.hidden {
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+        }
+        .splash-icon {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 24px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .splash-icon svg { width: 100%; height: 100%; }
+        .splash-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffaa44;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .splash-subtitle {
+            font-size: 14px;
+            color: #888;
+            letter-spacing: 4px;
+        }
+        .splash-status {
+            margin-top: 40px;
+            font-size: 13px;
+            color: #666;
+        }
+        .splash-loader {
+            margin-top: 16px;
+            width: 48px;
+            height: 48px;
+            border: 3px solid #333;
+            border-top-color: #ffaa44;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.85; }
+        }
+
+        /* ===== 配置页面 ===== */
+        #configScreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 900;
+            padding: 24px;
+        }
+        #configScreen.show { display: flex; }
+
+        .config-card {
+            background: #2a2a2a;
+            border-radius: 20px;
+            padding: 32px 28px;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid #3a3a3a;
+        }
+        .config-card h2 {
+            font-size: 22px;
+            color: #ffaa44;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .config-card p {
+            font-size: 13px;
+            color: #999;
+            text-align: center;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .config-group {
+            margin-bottom: 16px;
+        }
+        .config-group label {
+            display: block;
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+        .config-group input, .config-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            background: #1e1e1e;
+            color: white;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .config-group input:focus, .config-group select:focus {
+            border-color: #ffaa44;
+        }
+        .config-group select {
+            appearance: none;
+            cursor: pointer;
+        }
+        .config-group select option {
+            background: #1e1e1e;
+            color: white;
+        }
+        .config-hint {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, #0a6cff, #0055cc);
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s, opacity 0.15s;
+            margin-top: 8px;
+        }
+        .btn-primary:active { transform: scale(0.97); opacity: 0.85; }
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            background: transparent;
+            color: #aaa;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-secondary:hover {
+            border-color: #666;
+            color: #ccc;
+        }
+
+        .mode-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+        .mode-badge.termux {
+            background: #1a3a1a;
+            color: #6f6;
+        }
+        .mode-badge.cloud {
+            background: #1a1a3a;
+            color: #66f;
+        }
+
+        /* ===== WebView 框架 ===== */
+        #appFrame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }
+        #appFrame.show { display: block; }
+
+        /* ===== 错误页面 ===== */
+        #errorScreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #1a1a1a;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 800;
+            padding: 24px;
+            text-align: center;
+        }
+        #errorScreen.show { display: flex; }
+        .error-icon { font-size: 64px; margin-bottom: 16px; }
+        .error-title { font-size: 20px; color: #ff6b6b; margin-bottom: 8px; }
+        .error-detail { font-size: 14px; color: #888; margin-bottom: 24px; line-height: 1.5; }
+        .btn-retry {
+            padding: 12px 32px;
+            border-radius: 12px;
+            border: none;
+            background: #0a6cff;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        /* ===== 顶部状态栏 ===== */
+        #statusBar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 40px;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            padding: 0 12px;
+            z-index: 100;
+            border-bottom: 1px solid #333;
+            -webkit-app-region: drag;
+        }
+        #statusBar.show { display: flex; }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-dot.connected { background: #4caf50; }
+        .status-dot.disconnected { background: #f44336; }
+        .status-text { font-size: 12px; color: #aaa; flex: 1; }
+        .status-settings {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .status-settings:hover { background: #333; color: #ffaa44; }
+    </style>
+</head>
+<body>
+
+    <!-- ===== 启动画面 ===== -->
+    <div id="splashScreen">
+        <div class="splash-icon">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#0a6cff"/>
+                        <stop offset="100%" style="stop-color:#ffaa44"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="50" cy="50" r="48" fill="none" stroke="url(#g)" stroke-width="2"/>
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#333" stroke-width="1"/>
+                <text x="50" y="58" text-anchor="middle" fill="#ffaa44" font-size="32" font-weight="bold">COC</text>
+                <path d="M50 10 L50 90" stroke="#333" stroke-width="0.5" stroke-dasharray="4 4"/>
+                <path d="M10 50 L90 50" stroke="#333" stroke-width="0.5" stroke-dasharray="4 4"/>
+            </svg>
+        </div>
+        <div class="splash-title">AI守秘人</div>
+        <div class="splash-subtitle">克苏鲁的呼唤</div>
+        <div class="splash-loader"></div>
+        <div class="splash-status" id="splashStatus">正在初始化...</div>
+    </div>
+
+    <!-- ===== 配置页面 ===== -->
+    <div id="configScreen">
+        <div class="config-card">
+            <h2>⚙️ 连接设置</h2>
+            <p>配置 Flask 后端服务器地址<br>选择运行模式后点击「保存并连接」</p>
+
+            <div class="config-group">
+                <label>运行模式</label>
+                <select id="modeSelect">
+                    <option value="termux">📱 Termux 本地模式（localhost:5000）</option>
+                    <option value="cloud">☁️ 云服务器模式</option>
+                    <option value="custom">🔧 自定义地址</option>
+                </select>
+            </div>
+
+            <div class="config-group" id="urlGroup">
+                <label>服务器地址</label>
+                <input type="url" id="serverUrl" placeholder="http://192.168.1.100:5000" autocomplete="off">
+                <div class="config-hint" id="urlHint">确保手机和服务器在同一网络</div>
+            </div>
+
+            <button class="btn-primary" onclick="saveConfig()">💾 保存并连接</button>
+            <button class="btn-secondary" onclick="testConnection()">📡 测试连接</button>
+        </div>
+    </div>
+
+    <!-- ===== WebView 框架 ===== -->
+    <iframe id="appFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+
+    <!-- ===== 错误页面 ===== -->
+    <div id="errorScreen">
+        <div class="error-icon">⚠️</div>
+        <div class="error-title">连接失败</div>
+        <div class="error-detail" id="errorDetail">无法连接到服务器，请检查：<br>1. Flask 后端是否已启动<br>2. 服务器地址是否正确<br>3. 手机和服务器是否在同一网络</div>
+        <button class="btn-retry" onclick="showConfig()">⚙️ 重新配置</button>
+        <button class="btn-retry" style="background:#333;" onclick="retryConnection()">🔄 重试连接</button>
+    </div>
+
+    <!-- ===== 状态栏 ===== -->
+    <div id="statusBar">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">已连接</span>
+        <button class="status-settings" onclick="showConfig()" title="设置">⚙️</button>
+    </div>
+
+    <script>
+        // ===== 配置管理 =====
+        const CONFIG_KEY = 'coc_keeper_config';
+
+        function getConfig() {
+            try {
+                return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {};
+            } catch { return {}; }
+        }
+
+        function saveConfig() {
+            const mode = document.getElementById('modeSelect').value;
+            let url = '';
+
+            switch (mode) {
+                case 'termux':
+                    url = 'http://127.0.0.1:5000';
+                    break;
+                case 'cloud':
+                    url = document.getElementById('serverUrl').value.trim() || 'http://127.0.0.1:5000';
+                    break;
+                case 'custom':
+                    url = document.getElementById('serverUrl').value.trim();
+                    if (!url) { alert('请输入服务器地址'); return; }
+                    break;
+            }
+
+            // 确保 URL 格式正确
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'http://' + url;
+            }
+            // 移除末尾斜杠
+            url = url.replace(/\/+$/, '');
+
+            const config = { mode, url };
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+
+            document.getElementById('configScreen').classList.remove('show');
+            connectToServer(url);
+        }
+
+        function loadConfig() {
+            const config = getConfig();
+            if (config.url) {
+                // 设置模式
+                if (config.mode === 'termux' || config.url.includes('127.0.0.1') || config.url.includes('localhost')) {
+                    document.getElementById('modeSelect').value = 'termux';
+                } else if (config.mode === 'cloud') {
+                    document.getElementById('modeSelect').value = 'cloud';
+                } else {
+                    document.getElementById('modeSelect').value = 'custom';
+                }
+                document.getElementById('serverUrl').value = config.url;
+
+                // 自动连接
+                document.getElementById('configScreen').classList.remove('show');
+                connectToServer(config.url);
+            } else {
+                showConfig();
+            }
+        }
+
+        function showConfig() {
+            hideSplash();
+            document.getElementById('appFrame').classList.remove('show');
+            document.getElementById('appFrame').src = '';
+            document.getElementById('statusBar').classList.remove('show');
+            document.getElementById('errorScreen').classList.remove('show');
+            document.getElementById('configScreen').classList.add('show');
+        }
+
+        function hideSplash() {
+            document.getElementById('splashScreen').classList.add('hidden');
+        }
+
+        // ===== 模式切换 =====
+        document.getElementById('modeSelect').addEventListener('change', function() {
+            const val = this.value;
+            const urlInput = document.getElementById('serverUrl');
+            const urlHint = document.getElementById('urlHint');
+
+            if (val === 'termux') {
+                urlInput.value = 'http://127.0.0.1:5000';
+                urlInput.disabled = true;
+                urlHint.textContent = '需在 Termux 中运行 python app.py';
+            } else if (val === 'cloud') {
+                urlInput.value = 'http://';
+                urlInput.disabled = false;
+                urlHint.textContent = '输入已部署的 Flask 服务器地址';
+                urlInput.focus();
+            } else {
+                urlInput.value = '';
+                urlInput.disabled = false;
+                urlHint.textContent = '输入完整的服务器地址（含端口）';
+                urlInput.focus();
+            }
+        });
+
+        // 初始化模式选择
+        document.getElementById('modeSelect').value = 'termux';
+        document.getElementById('serverUrl').value = 'http://127.0.0.1:5000';
+        document.getElementById('serverUrl').disabled = true;
+
+        // ===== 连接管理 =====
+        let currentUrl = '';
+        let connectionTimer = null;
+
+        function connectToServer(url) {
+            currentUrl = url;
+            document.getElementById('errorScreen').classList.remove('show');
+            document.getElementById('splashStatus').textContent = '正在连接 ' + url + '...';
+
+            // 先测试连接
+            testUrl(url).then(ok => {
+                if (ok) {
+                    loadApp(url);
+                } else {
+                    // 连接失败，显示错误
+                    document.getElementById('splashStatus').textContent = '连接失败';
+                    setTimeout(() => {
+                        hideSplash();
+                        document.getElementById('errorDetail').innerHTML =
+                            '无法连接到 <strong>' + url + '</strong><br><br>' +
+                            '请检查：<br>' +
+                            '1️⃣ Flask 后端是否已启动（python app.py）<br>' +
+                            '2️⃣ 服务器地址是否正确<br>' +
+                            '3️⃣ 手机和服务器是否在同一网络<br>' +
+                            (url.includes('127.0.0.1') ? '<br>💡 当前为本地模式，需在 Termux 中运行服务' : '');
+                        document.getElementById('errorScreen').classList.add('show');
+                    }, 800);
+                }
+            });
+        }
+
+        async function testUrl(url) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const resp = await fetch(url, {
+                    method: 'HEAD',
+                    signal: controller.signal,
+                    mode: 'no-cors'
+                });
+                clearTimeout(timeoutId);
+                return true;
+            } catch (e) {
+                // no-cors 模式下可能无法获取响应，尝试另一种方式
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    const resp = await fetch(url + '/', {
+                        method: 'GET',
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    return resp.ok || resp.status === 200;
+                } catch (e2) {
+                    return false;
+                }
+            }
+        }
+
+        async function testConnection() {
+            const url = document.getElementById('serverUrl').value.trim();
+            if (!url) { alert('请输入服务器地址'); return; }
+
+            const btn = document.querySelector('.btn-secondary');
+            btn.textContent = '⏳ 测试中...';
+            btn.disabled = true;
+
+            const ok = await testUrl(url);
+            if (ok) {
+                btn.textContent = '✅ 连接成功！';
+                setTimeout(() => {
+                    btn.textContent = '📡 测试连接';
+                    btn.disabled = false;
+                }, 2000);
+            } else {
+                btn.textContent = '❌ 连接失败';
+                setTimeout(() => {
+                    btn.textContent = '📡 测试连接';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+
+        function loadApp(url) {
+            hideSplash();
+            document.getElementById('errorScreen').classList.remove('show');
+            document.getElementById('configScreen').classList.remove('show');
+
+            const frame = document.getElementById('appFrame');
+            frame.src = url;
+            frame.classList.add('show');
+
+            // 显示状态栏
+            const statusBar = document.getElementById('statusBar');
+            statusBar.classList.add('show');
+            document.getElementById('statusText').textContent = '已连接 · ' + url;
+            document.getElementById('statusDot').className = 'status-dot connected';
+        }
+
+        async function retryConnection() {
+            document.getElementById('errorScreen').classList.remove('show');
+            document.getElementById('splashScreen').classList.remove('hidden');
+            document.getElementById('splashStatus').textContent = '正在重试...';
+            connectToServer(currentUrl);
+        }
+
+        // ===== 监听 iframe 加载 =====
+        document.getElementById('appFrame').addEventListener('load', function() {
+            // iframe 加载完成
+        });
+
+        document.getElementById('appFrame').addEventListener('error', function() {
+            document.getElementById('statusDot').className = 'status-dot disconnected';
+            document.getElementById('statusText').textContent = '连接断开';
+        });
+
+        // ===== 初始化 =====
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(loadConfig, 1500);
+        });
+    </script>
+</body>
+</html>
