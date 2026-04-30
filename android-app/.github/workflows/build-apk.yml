@@ -26,6 +26,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            android-app/android/**/*.gradle*
+            android-app/android/gradle/wrapper/gradle-wrapper.properties
 
       - name: 设置 Android SDK
         uses: android-actions/setup-android@v3
