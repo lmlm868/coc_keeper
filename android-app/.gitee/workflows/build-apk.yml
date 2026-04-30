@@ -1,0 +1,42 @@
+name: 构建 Android APK
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: androidsdk/android-34:latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 设置 Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: 设置 npm 国内镜像
+        run: npm config set registry https://registry.npmmirror.com
+
+      - name: 安装依赖并同步
+        run: |
+          cd android-app
+          npm install
+          npx cap sync android
+
+      - name: 构建 Debug APK
+        run: |
+          cd android-app/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: 上传 APK 产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: coc-keeper-debug
+          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
