@@ -19,9 +19,10 @@ jobs:
           node-version: '20'
 
       - name: 设置 Java JDK 17
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> $GITHUB_ENV
-          java -version
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
 
       - name: 设置 Android SDK
         uses: android-actions/setup-android@v3

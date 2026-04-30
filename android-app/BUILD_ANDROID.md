@@ -2,11 +2,49 @@
 
 本文档指导你如何使用 **Capacitor** 将 [`coc_ai`](../) 项目打包为 Android APK。
 
-> ⚠️ **如果你在国内无法访问 Android Studio 官网**，请优先使用 **方式一（GitHub Actions 云构建）** 或 **方式三（PWA）**，无需安装任何 Android 开发工具。
+> ⚠️ **如果你在国内无法访问 Android Studio 官网**，请优先使用 **方式一（Gitee Go 云构建）** 或 **方式四（PWA）**，无需安装任何 Android 开发工具。
 
 ---
 
-## 📋 先决条件
+## 🚀 方式一：Gitee Go 云构建 APK（国内推荐，无需本地 Android Studio）
+
+**不需要安装 Android Studio 和 Android SDK**，只需将代码推送到 [Gitee（码云）](https://gitee.com/)，CI/CD 流水线会在云端自动构建 APK。
+
+### 前提条件
+
+1. 注册 [Gitee 账号](https://gitee.com/signup)
+2. 在 Gitee 创建一个**空仓库**（不要勾选任何初始化选项）
+
+### 步骤
+
+```bash
+# 1. 移除原来的远程仓库地址
+git remote remove origin
+
+# 2. 添加 Gitee 远程仓库（替换 你的用户名）
+git remote add origin https://gitee.com/你的用户名/coc-keeper.git
+
+# 3. 推送代码到 Gitee（会弹出登录窗口，输入 Gitee 账号密码）
+git push -u origin master
+
+# 如果希望使用 SSH（推荐，避免每次输密码）：
+# 先在 Gitee 设置中添加 SSH 公钥 → https://gitee.com/profile/sshkeys
+# git remote set-url origin git@gitee.com:你的用户名/coc-keeper.git
+# git push -u origin master
+```
+
+### 触发自动构建
+
+1. 进入 Gitee 仓库页面 → **流水线**（CI/CD）选项卡
+2. 如果流水线没有自动触发，点击 **新建流水线**
+3. 选择 `.gitee/workflows/build-apk.yml` 配置文件
+4. 等待 10-15 分钟，构建完成后在 **产物** 中下载 `coc-keeper-debug` 的 APK
+
+> 💡 工作流定义在 [`.gitee/workflows/build-apk.yml`](.gitee/workflows/build-apk.yml)，使用 `androidsdk/android-34` Docker 镜像，无需你本地配置任何东西。
+
+---
+
+## 📋 先决条件（以下为本地构建所需）
 
 | 工具 | 版本要求 | 国内下载 |
 |------|---------|---------|
