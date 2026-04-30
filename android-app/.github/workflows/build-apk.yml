@@ -11,9 +11,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./android-app
 
     steps:
       - name: 检出代码
@@ -33,36 +30,17 @@ jobs:
       - name: 设置 Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 缓存 npm 依赖
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('android-app/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: 缓存 Gradle 依赖
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android-app/android/**/*.gradle*', 'android-app/android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: 安装依赖并同步
+        working-directory: ./android-app
         run: |
           npm install
           npx cap sync android
 
-      - name: 授予 gradlew 执行权限
-        run: chmod +x ./android/gradlew
-
       - name: 构建 Debug APK
+        working-directory: ./android-app/android
         run: |
-          cd android
-          ./gradlew assembleDebug
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
       - name: 上传 APK 产物
         uses: actions/upload-artifact@v4
@@ -70,15 +48,3 @@ jobs:
           name: coc-keeper-debug-apk
           path: android-app/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
-      - name: 构建 Release APK（未签名）
-        run: |
-          cd android
-          ./gradlew assembleRelease
-
-      - name: 上传 Release APK 产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: coc-keeper-release-unsigned-apk
-          path: android-app/android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: warn
