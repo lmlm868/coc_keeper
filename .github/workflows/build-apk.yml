@@ -16,10 +16,10 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 Node.js
+      - name: 设置 Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: 设置 Java JDK 17
         run: |
