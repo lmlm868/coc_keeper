@@ -21,9 +21,9 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 设置 Java JDK 17
+      - name: 设置 Java JDK 21
         run: |
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> $GITHUB_ENV
           java -version
 
       - name: 设置 Android SDK
